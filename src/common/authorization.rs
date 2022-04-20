@@ -94,7 +94,8 @@ impl<C: Credentials> ::Header for Authorization<C> {
     }
 
     fn encode<E: Extend<::HeaderValue>>(&self, values: &mut E) {
-        let value = self.0.encode();
+        let mut value = self.0.encode();
+
         debug_assert!(
             value.as_bytes().starts_with(C::SCHEME.as_bytes()),
             "Credentials::encode should include its scheme: scheme = {:?}, encoded = {:?}",
@@ -102,6 +103,7 @@ impl<C: Credentials> ::Header for Authorization<C> {
             value,
         );
 
+        value.set_sensitive(true);
         values.extend(::std::iter::once(value));
     }
 }
@@ -171,7 +173,10 @@ impl Credentials for Basic {
         base64::encode_config_buf(&self.decoded, base64::STANDARD, &mut encoded);
 
         let bytes = Bytes::from(encoded);
-        HeaderValue::from_maybe_shared(bytes).expect("base64 encoding is always a valid HeaderValue")
+        let mut value = HeaderValue::from_maybe_shared(bytes)
+            .expect("base64 encoding is always a valid HeaderValue");
+        value.set_sensitive(true);
+        value
     }
 }
 
@@ -200,7 +205,9 @@ impl Credentials for Bearer {
     }
 
     fn encode(&self) -> HeaderValue {
-        (&self.0).into()
+        let mut value = HeaderValue::from(&self.0);
+        value.set_sensitive(true);
+        value
     }
 }
 
